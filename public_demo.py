@@ -318,6 +318,21 @@ def event_rows(events):
     ]
 
 
+def feature_card_html(icon, title, body):
+    """Self-contained feature card for the landing page.
+
+    Pure string formatting - no I/O, no session state. Colours are set
+    explicitly so the card stays readable in light and dark themes.
+    """
+    return (
+        '<div class="lg-card">'
+        f'<div class="lg-card-icon" aria-hidden="true">{icon}</div>'
+        f"<h3>{title}</h3>"
+        f"<p>{body}</p>"
+        "</div>"
+    )
+
+
 def build_demo_report(devices, history, events):
     """Build the example report entirely in memory (never saved)."""
     lines = []
@@ -468,33 +483,110 @@ def run_demo():
             padding-left: 10px;
             margin-top: 6px;
         }
+
+        /* ---------- landing page ---------- */
+        .lg-hero {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 55%, #1d4ed8 100%);
+            color: #f8fafc;
+            border-radius: 14px;
+            padding: clamp(22px, 4vw, 44px);
+            margin: 4px 0 16px 0;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+        }
+        .lg-hero h1 {
+            color: #f8fafc;
+            font-size: clamp(1.8rem, 3.6vw, 2.7rem);
+            margin: 0 0 6px 0;
+            line-height: 1.15;
+        }
+        .lg-kicker {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: #93c5fd;
+            margin: 0 0 10px 0;
+        }
+        .lg-tagline {
+            color: #dbeafe;
+            font-size: clamp(1.05rem, 2vw, 1.35rem);
+            font-weight: 600;
+            margin: 0 0 10px 0;
+        }
+        .lg-hero-sub {
+            color: #cbd5e1;
+            font-size: 0.98rem;
+            line-height: 1.6;
+            margin: 0;
+            max-width: 72ch;
+        }
+        .lg-sim-notice {
+            background: #fffbeb;
+            color: #78350f;
+            border: 1px solid #fcd34d;
+            border-left: 6px solid #d97706;
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin: 4px 0 16px 0;
+            font-size: 0.95rem;
+            line-height: 1.55;
+        }
+        .lg-sim-notice strong {
+            color: #92400e;
+            letter-spacing: 0.5px;
+        }
+        .lg-card {
+            background: #ffffff;
+            color: #0f172a;
+            border: 1px solid #e2e8f0;
+            border-top: 4px solid #2563eb;
+            border-radius: 12px;
+            padding: 18px;
+            height: 100%;
+            box-sizing: border-box;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, 0.10);
+        }
+        .lg-card h3 {
+            color: #0f172a;
+            font-size: 1.05rem;
+            margin: 0 0 8px 0;
+        }
+        .lg-card p {
+            color: #334155;
+            font-size: 0.92rem;
+            line-height: 1.6;
+            margin: 0;
+        }
+        .lg-card-icon {
+            font-size: 1.5rem;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
         </style>
         <div class="lg-demo-banner">PUBLIC DEMO — ALL DATA IS SIMULATED</div>
         """,
         unsafe_allow_html=True,
     )
 
-    st.markdown(
-        "<h1 class='lg-demo-title'>LAN Guardian — "
-        "Network Security Demo</h1>",
-        unsafe_allow_html=True,
-    )
-    st.caption(
-        "A guided tour of the LAN Guardian interface. Every IP address, "
-        "MAC address, device name, alert and scan below is fictional "
-        "sample data held only in this browser session."
-    )
+    # Programmatic jump: the landing-page button sets this flag and
+    # reruns. The flag is applied HERE - before the radio is created -
+    # because a widget-backed session key may only be set before that
+    # widget is instantiated.
+    if "lg_go_demo" in st.session_state and st.session_state["lg_go_demo"]:
+        st.session_state["lg_section"] = "Overview"
+        st.session_state["lg_go_demo"] = False
 
     st.sidebar.title("Demo navigation")
     section = st.sidebar.radio(
         "Sections",
         [
+            "Landing",
             "Overview",
             "Scan history",
             "Security events",
             "Example report",
             "About the local version",
         ],
+        key="lg_section",
     )
 
     st.sidebar.markdown(
@@ -511,16 +603,21 @@ def run_demo():
 
     init_demo_state()
 
-    if section == "Overview":
-        render_overview()
-    elif section == "Scan history":
-        render_history()
-    elif section == "Security events":
-        render_events()
-    elif section == "Example report":
-        render_report()
+    if section == "Landing":
+        render_landing()
     else:
-        render_about()
+        # Every other section keeps the original page header.
+        render_page_header()
+        if section == "Overview":
+            render_overview()
+        elif section == "Scan history":
+            render_history()
+        elif section == "Security events":
+            render_events()
+        elif section == "Example report":
+            render_report()
+        else:
+            render_about()
 
     st.markdown(
         "<p class='lg-note'>Fictional data only: IP addresses are from "
@@ -528,6 +625,137 @@ def run_demo():
         "placeholders (aa-bb-cc-...), and all names are invented for "
         "this demo.</p>",
         unsafe_allow_html=True,
+    )
+
+
+def render_page_header():
+    """Header shown above every section except the landing page."""
+    st.markdown(
+        "<h1 class='lg-demo-title'>LAN Guardian — "
+        "Network Security Demo</h1>",
+        unsafe_allow_html=True,
+    )
+    st.caption(
+        "A guided tour of the LAN Guardian interface. Every IP address, "
+        "MAC address, device name, alert and scan below is fictional "
+        "sample data held only in this browser session."
+    )
+
+
+def render_landing():
+    """Landing page: project intro, simulation notice, feature cards."""
+    st.markdown(
+        """
+        <div class="lg-hero">
+            <div class="lg-kicker">EDUCATIONAL CYBERSECURITY PROJECT</div>
+            <h1>LAN Guardian</h1>
+            <p class="lg-tagline">Understand changes on your local network.</p>
+            <p class="lg-hero-sub">
+                See which devices are present on a local network, notice
+                when something changes, and read a clear explanation of
+                what happened - calmly, and without guesswork.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Navigation only: it pre-seeds the sidebar radio (via the flag
+    # handled at the top of run_demo) and reruns once.
+    if st.button("Open the interactive demo", type="primary",
+                 key="lg_open_demo"):
+        st.session_state["lg_go_demo"] = True
+        st.rerun()
+
+    st.caption(
+        "Jumps to the interactive demo (Overview section). Navigation "
+        "only - the button runs no commands, opens no network "
+        "connections and writes no files."
+    )
+
+    st.markdown(
+        """
+        <div class="lg-sim-notice">
+            <strong>PUBLIC SIMULATION</strong> &mdash; every device, IP
+            address, MAC address, scan result, alert and timestamp on
+            this page is fictional sample data. This page never scans
+            any visitor's network: it runs no operating-system commands,
+            contacts nothing, and reads or writes no files. Live
+            monitoring exists only in the separate local version, and
+            only on its own computer.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("### Why monitoring matters")
+    st.markdown(
+        "Most home, campus and office networks quietly fill up with "
+        "phones, laptops, consoles, cameras and smart-home gadgets, and "
+        "devices join and leave all the time - so an unexpected arrival "
+        "is easy to miss. Monitoring your own network is about "
+        "**knowing what normal looks like**: when the usual devices are "
+        "familiar, a new or changed entry stands out as a question "
+        "worth checking - calmly and with evidence - rather than as a "
+        "panic. This project deliberately teaches that habit: observe "
+        "first, then decide."
+    )
+
+    st.markdown("### What LAN Guardian does")
+    columns = st.columns(3)
+    with columns[0]:
+        st.markdown(feature_card_html(
+            "🔎",
+            "Device Visibility",
+            "Every observed device is listed with its IP address, MAC "
+            "address and a friendly name. Entries on the trusted list "
+            "are marked <strong>KNOWN</strong>; anything else is simply "
+            "<strong>UNRECOGNIZED</strong> - a prompt to look, never a "
+            "label of guilt.",
+        ), unsafe_allow_html=True)
+    with columns[1]:
+        st.markdown(feature_card_html(
+            "🔄",
+            "Change Monitoring",
+            "Each observation is compared with a saved baseline, so new "
+            "arrivals, departures and address changes are reported in "
+            "plain language. A device must be absent from two "
+            "consecutive successful scans before a possible "
+            "disappearance is even mentioned.",
+        ), unsafe_allow_html=True)
+    with columns[2]:
+        st.markdown(feature_card_html(
+            "🗂️",
+            "Security Event History",
+            "Notices are recorded with their full story: first seen, "
+            "times seen, and how they were resolved. Resolved events "
+            "keep their explanation instead of vanishing, so the "
+            "history stays honest and reviewable.",
+        ), unsafe_allow_html=True)
+
+    st.markdown("### About the Project")
+    st.markdown(
+        "**LAN Guardian** is an educational cybersecurity project: a "
+        "small, readable program that demonstrates how defensive "
+        "network monitoring works on a personal computer. The local "
+        "version is built from beginner-friendly Python - a "
+        "standard-library command-line program plus a Streamlit "
+        "dashboard - so every part can be opened, run and understood "
+        "while you study it.\n\n"
+        "One principle runs through the whole project: **an unfamiliar "
+        "device is not automatically malicious.** A device that is not "
+        "on your trusted list is most often a guest's phone, a new "
+        "smart television or a neighbour's gadget. LAN Guardian "
+        "reports observations with explanations and leaves every "
+        "judgement to the person operating it.\n\n"
+        "Live monitoring of a real network is available only in the "
+        "**separate local version**, which runs on your own computer - "
+        "see *About the local version* in the sidebar. This public "
+        "page exists to demonstrate the interface with fictional data."
+    )
+    st.caption(
+        "Explore next (sidebar): Overview · Scan history · Security "
+        "events · Example report · About the local version."
     )
 
 
